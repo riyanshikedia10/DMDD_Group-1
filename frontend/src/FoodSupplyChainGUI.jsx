@@ -946,12 +946,24 @@ const AdminDashboard = ({ user, onLogout }) => {
 
     const fetchData = async (module) => {
         try {
+            console.log(`Fetching ${module} from ${API_BASE_URL}/${apiEndpoints[module]}`);
             const res = await fetch(`${API_BASE_URL}/${apiEndpoints[module]}`);
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ error: `HTTP ${res.status}: ${res.statusText}` }));
+                console.error(`Error fetching ${module}:`, errorData);
+                showNotif(`Failed to load ${module}: ${errorData.error || res.statusText}`, 'error');
+                return;
+            }
             const data = await res.json();
+            console.log(`Received data for ${module}:`, data);
             const arr = Array.isArray(data) ? data : [];
+            console.log(`Setting ${module} with ${arr.length} items:`, arr);
             const setters = { lots: setLots, suppliers: setSuppliers, orders: setOrders, inventory: setInventory, quality: setQualityTests, recalls: setRecalls, warehouses: setWarehouses, customers: setCustomers, materials: setMaterials };
             setters[module]?.(arr);
-        } catch (err) { console.error(err); }
+        } catch (err) { 
+            console.error(`Network error fetching ${module}:`, err);
+            showNotif(`Cannot connect to backend API. Make sure the server is running on port 5000.`, 'error');
+        }
     };
 
     const fetchAllData = async () => { setLoading(true); await Promise.all(Object.keys(apiEndpoints).map(e => fetchData(e))); setLoading(false); };
@@ -1114,7 +1126,10 @@ const AdminDashboard = ({ user, onLogout }) => {
     };
 
     const renderTable = () => {
-        const data = filterData(getCurrentData());
+        const currentData = getCurrentData();
+        console.log(`Rendering table for ${activeModule}, current data:`, currentData);
+        const data = filterData(currentData);
+        console.log(`Filtered data (${data.length} items):`, data);
         if (!data.length) return <div className="p-8 text-center text-gray-500">No records found</div>;
 
         const cfg = {

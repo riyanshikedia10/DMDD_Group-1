@@ -1,11 +1,11 @@
 const express = require('express');
 const router = express.Router();
-const { sql, poolPromise } = require('../config/db');
+const { sql, poolPromise, getPool } = require('../config/db');
 
 // GET all lots
 router.get('/', async (req, res) => {
   try {
-    const pool = await poolPromise;
+    const pool = await getPool();
     const result = await pool.request().query(`
       SELECT 
         l.Lot_ID as id,
@@ -26,6 +26,11 @@ router.get('/', async (req, res) => {
     res.json(result.recordset);
   } catch (err) {
     console.error('Error fetching lots:', err);
+    // Return empty array if database connection fails, so frontend can still load
+    if (err.code === 'ELOGIN' || err.message?.includes('Login failed') || err.message?.includes('connection') || err.message?.includes('not available')) {
+      console.warn('Database not connected, returning empty array');
+      return res.json([]);
+    }
     res.status(500).json({ error: err.message });
   }
 });

@@ -29,6 +29,7 @@ const config = {
 //   },
 // };
 
+// Create pool promise but don't exit on failure - let routes handle it
 const poolPromise = new sql.ConnectionPool(config)
   .connect()
   .then((pool) => {
@@ -37,7 +38,18 @@ const poolPromise = new sql.ConnectionPool(config)
   })
   .catch((err) => {
     console.error('Database connection failed:', err);
-    process.exit(1);
+    console.warn('Server will continue running but database operations will fail.');
+    // Return a rejected promise that routes can catch
+    return Promise.reject(err);
   });
 
-module.exports = { sql, poolPromise };
+// Helper function to safely get the pool
+const getPool = async () => {
+  try {
+    return await poolPromise;
+  } catch (err) {
+    throw new Error('Database connection not available. Please check your database configuration.');
+  }
+};
+
+module.exports = { sql, poolPromise, getPool };
